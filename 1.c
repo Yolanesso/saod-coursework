@@ -54,16 +54,13 @@ void convert_cp866_to_utf8(const char* input, char* output, int max_len) {
         const char* utf8_char = cp866_to_utf8(c);
         
         if (utf8_char != NULL) {
-            // Копируем UTF-8 символ
             int j = 0;
             while (utf8_char[j] != '\0' && out_index < max_len * 3 - 1) {
                 output[out_index++] = utf8_char[j++];
             }
         } else if (c < 0x80) {
-            // ASCII символы
             output[out_index++] = c;
         } else {
-            // Неизвестный символ - пропускаем или заменяем
             output[out_index++] = '?';
         }
     }
