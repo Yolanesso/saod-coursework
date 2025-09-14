@@ -55,57 +55,53 @@ void make_index_array(Record *arr[], Node *root, int n) {
     }
 }
 
-// Функция сравнения для сортировки: сначала по улице, затем по дому
 int compare_records(const Record *record1, const Record *record2) {
-    // Сравниваем названия улиц
     int street_cmp = strcmp(record1->street, record2->street);
     if (street_cmp != 0) {
         return street_cmp;
     }
-    // Если улицы одинаковые, сравниваем номера домов
     return record1->home - record2->home;
 }
 
-// Функция сравнения для кучи
 int compare_for_heap(const void *a, const void *b) {
     Record *r1 = *(Record**)a;
     Record *r2 = *(Record**)b;
     return compare_records(r1, r2);
 }
 
-void MakeHeap(Record *array[], int l, int r) {
-    Record *x = array[l];
-    int i = l;
-    while (1) {
-        int j = i * 2 + 1; // левый потомок
-        if (j > r) break;
-        
-        // Выбираем большего потомка
-        if (j < r && compare_for_heap(&array[j], &array[j + 1]) < 0) {
-            j++;
-        }
-        
-        // Если текущий элемент больше или равен потомку, выходим
-        if (compare_for_heap(&x, &array[j]) >= 0) break;
-        
-        array[i] = array[j];
-        i = j;
+void heapify(Record *array[], int n, int i) {
+    int largest = i;
+    int left = 2 * i + 1;
+    int right = 2 * i + 2;
+
+    if (left < n && compare_for_heap(&array[left], &array[largest]) > 0) {
+        largest = left;
     }
-    array[i] = x;
+
+    if (right < n && compare_for_heap(&array[right], &array[largest]) > 0) {
+        largest = right;
+    }
+
+    if (largest != i) {
+        Record *temp = array[i];
+        array[i] = array[largest];
+        array[largest] = temp;
+
+        heapify(array, n, largest);
+    }
 }
 
 void HeapSort(Record *array[], int n) {
-    // Построение кучи
     for (int i = n / 2 - 1; i >= 0; i--) {
-        MakeHeap(array, i, n - 1);
+        heapify(array, n, i);
     }
     
-    // Извлечение элементов из кучи
     for (int i = n - 1; i > 0; i--) {
         Record *temp = array[0];
         array[0] = array[i];
         array[i] = temp;
-        MakeHeap(array, 0, i - 1);
+        
+        heapify(array, i, 0);
     }
 }
 
@@ -148,25 +144,22 @@ void show_list(Record *ind_arr[], int n) {
     }
 }
 
-// Функция сравнения для поиска: первые 3 символа улицы
 int compare_search(const char *street, const char *key) {
     return strncmp(street, key, 3);
 }
 
-// Бинарный поиск по первым 3 символам названия улицы
 int binary_search(Record *arr[], const char *key, int *start_index) {
     int left = 0;
     int right = N - 1;
     int found_index = -1;
     
-    // Находим первую запись, удовлетворяющую условию
     while (left <= right) {
         int mid = left + (right - left) / 2;
         int cmp = compare_search(arr[mid]->street, key);
         
         if (cmp == 0) {
             found_index = mid;
-            right = mid - 1; // Ищем первую подходящую запись
+            right = mid - 1;
         } else if (cmp < 0) {
             left = mid + 1;
         } else {
@@ -175,14 +168,12 @@ int binary_search(Record *arr[], const char *key, int *start_index) {
     }
     
     if (found_index == -1) {
-        return 0; // Не найдено
+        return 0;
     }
     
-    // Находим все записи с таким же ключом
     *start_index = found_index;
     int count = 1;
     
-    // Ищем вперед
     for (int i = found_index + 1; i < N; i++) {
         if (compare_search(arr[i]->street, key) == 0) {
             count++;
@@ -204,7 +195,6 @@ void search_by_street(Record *arr[]) {
             continue;
         }
         
-        // Берем только первые 3 символа
         char search_key[4] = {0};
         strncpy(search_key, key, 3);
         search_key[3] = '\0';
@@ -235,12 +225,38 @@ void search_by_street(Record *arr[]) {
     } while (1);
 }
 
+// Функция для вывода записи по номеру
+void show_record_by_number(Record *arr[]) {
+    char *input = prompt("Enter record number (1-4000) or 'q' to quit");
+    
+    if (input[0] == 'q' || input[0] == 'Q') {
+        return;
+    }
+    
+    int record_number = atoi(input);
+    
+    if (record_number < 1 || record_number > N) {
+        printf("Invalid record number! Please enter a number between 1 and %d\n", N);
+        return;
+    }
+    
+    system("cls");
+    printf("=== RECORD %d ===\n", record_number);
+    print_head();
+    print_record(arr[record_number - 1], record_number);
+    
+    printf("\nPress any key to continue...");
+    getchar();
+    getchar();
+}
+
 void mainloop(Record *unsorted_ind_array[], Record *sorted_ind_array[]) {
     while (1) {
         printf("\n=== MENU ===\n");
         char *chose = prompt("1: Show unsorted list\n"
                              "2: Show sorted list (by street and house)\n"
                              "3: Search by first 3 letters of street\n"
+                             "4: Show record by number\n"
                              "0: Exit");
         
         switch (chose[0]) {
@@ -256,6 +272,10 @@ void mainloop(Record *unsorted_ind_array[], Record *sorted_ind_array[]) {
                 printf("\n=== SEARCH BY STREET ===\n");
                 search_by_street(sorted_ind_array);
                 break;
+            case '4':
+                printf("\n=== SHOW RECORD BY NUMBER ===\n");
+                show_record_by_number(unsorted_ind_array);
+                break;
             case '0':
                 return;
             default:
@@ -268,7 +288,7 @@ int main() {
     printf("Loading data...\n");
     Node *root = load_to_memory();
     if (!root) {
-        printf("Error: File 'testBase4.dat' not found\n");
+        printf("Error: File 'database.dat' not found\n");
         return 1;
     }
     

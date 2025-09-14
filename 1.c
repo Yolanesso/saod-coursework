@@ -158,12 +158,10 @@ void display_record(Record* record) {
     char temp_street[STREET_LEN * 3 + 1];
     char temp_date[DATE_LEN * 3 + 1];
     
-    // Конвертируем из CP866 в UTF-8
     convert_cp866_to_utf8(record->name, temp_name, NAME_LEN);
     convert_cp866_to_utf8(record->street, temp_street, STREET_LEN);
     convert_cp866_to_utf8(record->date, temp_date, DATE_LEN);
     
-    // Убираем пробелы
     trim_spaces(temp_name, strlen(temp_name));
     trim_spaces(temp_street, strlen(temp_street));
     trim_spaces(temp_date, strlen(temp_date));
@@ -194,10 +192,8 @@ int search_by_street_prefix(Record* records, int count, const char* prefix, int*
     int found_count = 0;
     int* indices = malloc(count * sizeof(int));
     
-    // Конвертируем префикс из UTF-8 обратно в CP866 для поиска
     char cp866_prefix[4] = {0};
     for (int i = 0; i < 3 && prefix[i] != '\0'; i++) {
-        // Простая обратная конвертация для основных русских букв
         if (prefix[i] == 'А') cp866_prefix[i] = 0x80;
         else if (prefix[i] == 'Б') cp866_prefix[i] = 0x81;
         else if (prefix[i] == 'В') cp866_prefix[i] = 0x82;
@@ -262,7 +258,7 @@ int search_by_street_prefix(Record* records, int count, const char* prefix, int*
         else if (prefix[i] == 'э') cp866_prefix[i] = 0xED;
         else if (prefix[i] == 'ю') cp866_prefix[i] = 0xEE;
         else if (prefix[i] == 'я') cp866_prefix[i] = 0xEF;
-        else cp866_prefix[i] = prefix[i]; // ASCII символы
+        else cp866_prefix[i] = prefix[i];
     }
     
     for (int i = 0; i < count; i++) {
