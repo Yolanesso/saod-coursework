@@ -8,6 +8,17 @@
 #define STREET_SIZE 18
 #define DATE_SIZE 10
 
+// Color codes
+#define COLOR_RESET 7
+#define COLOR_RED 12
+#define COLOR_GREEN 10
+#define COLOR_YELLOW 14
+#define COLOR_BLUE 9
+#define COLOR_CYAN 11
+#define COLOR_MAGENTA 13
+#define COLOR_WHITE 15
+#define COLOR_GRAY 8
+
 typedef struct {
     char fio[MAX_STR_SIZE];
     char street[STREET_SIZE];
@@ -21,8 +32,76 @@ typedef struct Node {
     struct Node *next;
 } Node;
 
+// Color functions
+void setColor(int color) {
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+}
+
+void resetColor() {
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), COLOR_WHITE);
+}
+
+// Visual elements with simple ASCII
+void print_double_line() {
+    setColor(COLOR_CYAN);
+    printf("================================================================================\n");
+    resetColor();
+}
+
+void print_single_line() {
+    setColor(COLOR_CYAN);
+    printf("--------------------------------------------------------------------------------\n");
+    resetColor();
+}
+
+void print_header_title(const char *title) {
+    print_double_line();
+    setColor(COLOR_YELLOW);
+    printf("| %-72s |\n", title);
+    resetColor();
+    print_single_line();
+}
+
+void print_section_title(const char *title) {
+    setColor(COLOR_GREEN);
+    printf("\n");
+    print_double_line();
+    printf("| %-72s |\n", title);
+    print_double_line();
+    resetColor();
+}
+
+void print_success(const char *message) {
+    setColor(COLOR_GREEN);
+    printf("[SUCCESS] %s\n", message);
+    resetColor();
+}
+
+void print_error(const char *message) {
+    setColor(COLOR_RED);
+    printf("[ERROR] %s\n", message);
+    resetColor();
+}
+
+void print_warning(const char *message) {
+    setColor(COLOR_YELLOW);
+    printf("[WARNING] %s\n", message);
+    resetColor();
+}
+
+void print_info(const char *message) {
+    setColor(COLOR_CYAN);
+    printf("[INFO] %s\n", message);
+    resetColor();
+}
+
 char* prompt(const char *str) {
-    printf("%s\n> ", str);
+    setColor(COLOR_MAGENTA);
+    printf("\n%s\n", str);
+    setColor(COLOR_WHITE);
+    printf("> ");
+    resetColor();
+    
     static char ans[100];
     scanf("%s", ans);
     return ans;
@@ -105,29 +184,86 @@ void HeapSort(Record *array[], int n) {
     }
 }
 
-void print_head() {
-    printf("Record Full Name                        Street          Home  Apt  Date\n");
+void print_table_header() {
+    setColor(COLOR_CYAN);
+    printf("+------+----------------------------------+-----------------+------+-----+------------+\n");
+    setColor(COLOR_YELLOW);
+    printf("|  ID  | Full Name                        | Street          | Home | Apt | Date       |\n");
+    setColor(COLOR_CYAN);
+    printf("+------+----------------------------------+-----------------+------+-----+------------+\n");
+    resetColor();
 }
 
 void print_record(Record *record, int i) {
-    printf("[%4d] %-32s  %-15s  %-4d  %-3d  %s\n", 
-           i, record->fio, record->street, record->home, 
-           record->appartament, record->date);
+    // Alternate row colors for better readability
+    if (i % 2 == 0) {
+        setColor(COLOR_WHITE);
+    } else {
+        setColor(COLOR_GRAY);
+    }
+    
+    printf("| ");
+    setColor(COLOR_YELLOW);
+    printf("%4d", i);
+    setColor(i % 2 == 0 ? COLOR_WHITE : COLOR_GRAY);
+    printf(" | ");
+    setColor(COLOR_GREEN);
+    printf("%-32s", record->fio);
+    setColor(i % 2 == 0 ? COLOR_WHITE : COLOR_GRAY);
+    printf(" | ");
+    setColor(COLOR_MAGENTA);
+    printf("%-15s", record->street);
+    setColor(i % 2 == 0 ? COLOR_WHITE : COLOR_GRAY);
+    printf(" | ");
+    setColor(COLOR_CYAN);
+    printf("%4d", record->home);
+    setColor(i % 2 == 0 ? COLOR_WHITE : COLOR_GRAY);
+    printf(" | ");
+    setColor(COLOR_BLUE);
+    printf("%3d", record->appartament);
+    setColor(i % 2 == 0 ? COLOR_WHITE : COLOR_GRAY);
+    printf(" | ");
+    setColor(COLOR_RED);
+    printf("%-10s", record->date);
+    setColor(i % 2 == 0 ? COLOR_WHITE : COLOR_GRAY);
+    printf(" |\n");
+}
+
+void print_table_footer() {
+    setColor(COLOR_CYAN);
+    printf("+------+----------------------------------+-----------------+------+-----+------------+\n");
+    resetColor();
 }
 
 void show_list(Record *ind_arr[], int n) {
     int ind = 0;
     while (1) {
         system("cls");
-        print_head();
+        print_header_title("DATABASE RECORDS LIST");
+        
+        printf("\n");
+        print_table_header();
+        
         for (int i = 0; i < 20 && (ind + i) < n; i++) {
             print_record(ind_arr[ind + i], ind + i + 1);
         }
         
-        printf("\nPage %d/%d\n", (ind / 20) + 1, (n / 20) + 1);
-        char *chose = prompt("w: Next page\tq: Last page\te: Skip 10 next pages\n"
-                             "s: Prev page\ta: First page\td: Skip 10 prev pages\n"
-                             "Any key: Exit");
+        print_table_footer();
+        
+        // Pagination info
+        setColor(COLOR_YELLOW);
+        printf("\n Page %d of %d | Total records: %d\n", 
+               (ind / 20) + 1, (n / 20) + 1, n);
+        
+        // Navigation help
+        setColor(COLOR_GREEN);
+        printf("\n Navigation Controls:\n");
+        printf(" - W - Next Page          A - First Page        E - +10 Pages\n");
+        printf(" - S - Previous Page      Q - Last Page         D - -10 Pages\n");
+        printf(" - Any other key - Return to Menu\n");
+        resetColor();
+        
+        char *chose = prompt("Enter your choice:");
         
         switch (chose[0]) {
             case 'w': ind += 20; break;
@@ -189,9 +325,15 @@ void search_by_street(Record *arr[]) {
     char *key;
     
     do {
+        system("cls");
+        print_header_title("STREET SEARCH");
+        
+        print_info("Enter first 3 letters of street name to search");
+        
         key = prompt("Input first 3 letters of street name");
         if (strlen(key) == 0) {
-            printf("Please enter search key\n");
+            print_error("Please enter search key");
+            Sleep(2000);
             continue;
         }
         
@@ -203,11 +345,11 @@ void search_by_street(Record *arr[]) {
         int count = binary_search(arr, search_key, &start_index);
         
         if (count == 0) {
-            printf("No records found for street starting with '%s'\n", search_key);
+            print_error("No records found for street starting with given letters");
         } else {
-            printf("Found %d records for street starting with '%s'\n", count, search_key);
+            print_success("Records found successfully!");
+            printf("   Found: %d records | Search: '%s'\n", count, search_key);
             
-            // Создаем массив для найденных записей
             Record **found_arr = (Record**)malloc(count * sizeof(Record*));
             for (int i = 0; i < count; i++) {
                 found_arr[i] = arr[start_index + i];
@@ -217,6 +359,7 @@ void search_by_street(Record *arr[]) {
             free(found_arr);
         }
         
+        print_warning("Do you want to search again?");
         char *again = prompt("Search again? (y/n)");
         if (again[0] != 'y' && again[0] != 'Y') {
             break;
@@ -225,8 +368,12 @@ void search_by_street(Record *arr[]) {
     } while (1);
 }
 
-// Функция для вывода записи по номеру
 void show_record_by_number(Record *arr[]) {
+    system("cls");
+    print_header_title("RECORD VIEWER BY NUMBER");
+    
+    print_info("Enter record number between 1 and 4000");
+    
     char *input = prompt("Enter record number (1-4000) or 'q' to quit");
     
     if (input[0] == 'q' || input[0] == 'Q') {
@@ -236,59 +383,59 @@ void show_record_by_number(Record *arr[]) {
     int record_number = atoi(input);
     
     if (record_number < 1 || record_number > N) {
-        printf("Invalid record number! Please enter a number between 1 and %d\n", N);
+        print_error("Invalid record number! Please enter number between 1 and 4000");
+        printf("\nPress any key to continue...");
+        getchar();
+        getchar();
         return;
     }
     
     system("cls");
-    printf("=== RECORD %d ===\n", record_number);
-    print_head();
-    print_record(arr[record_number - 1], record_number);
+    print_header_title("RECORD DETAILS");
     
-    printf("\nPress any key to continue...");
+    printf("\n");
+    print_table_header();
+    print_record(arr[record_number - 1], record_number);
+    print_table_footer();
+    
+    print_info("Press any key to continue...");
     getchar();
     getchar();
 }
 
-void mainloop(Record *unsorted_ind_array[], Record *sorted_ind_array[]) {
-    while (1) {
-        printf("\n=== MENU ===\n");
-        char *chose = prompt("1: Show unsorted list\n"
-                             "2: Show sorted list (by street and house)\n"
-                             "3: Search by first 3 letters of street\n"
-                             "4: Show record by number\n"
-                             "0: Exit");
-        
-        switch (chose[0]) {
-            case '1':
-                printf("\n=== UNSORTED LIST ===\n");
-                show_list(unsorted_ind_array, N);
-                break;
-            case '2':
-                printf("\n=== SORTED LIST (by street and house number) ===\n");
-                show_list(sorted_ind_array, N);
-                break;
-            case '3':
-                printf("\n=== SEARCH BY STREET ===\n");
-                search_by_street(sorted_ind_array);
-                break;
-            case '4':
-                printf("\n=== SHOW RECORD BY NUMBER ===\n");
-                show_record_by_number(unsorted_ind_array);
-                break;
-            case '0':
-                return;
-            default:
-                printf("Invalid choice. Please try again.\n");
-        }
-    }
+void print_main_menu() {
+    system("cls");
+    print_header_title("📊 DATABASE MANAGEMENT SYSTEM 🗃️");
+    
+    setColor(COLOR_GREEN);
+    printf("|                            🎯 MAIN MENU 🎯                                  |\n");
+    print_single_line();
+    printf("|  📋 1 - Show Unsorted List                                                |\n");
+    printf("|  🔄 2 - Show Sorted List (by street and house)                            |\n");
+    printf("|  🔍 3 - Search by Street (first 3 letters)                                |\n");
+    printf("|  📖 4 - Show Record by Number                                             |\n");
+    printf("|  🚪 0 - Exit Program                                                      |\n");
+    print_double_line();
+    resetColor();
+    
+    print_info("🎮 Please select an option from the menu above");
 }
 
 int main() {
-    printf("Loading data...\n");
+    // Временное включение UTF-8 только для меню
+    system("chcp 65001 > nul");
+    
+    system("cls");
+    
+    print_header_title("📊 DATABASE MANAGEMENT SYSTEM 🗃️");
+    print_info("📂 Loading data from file...");
+    
+    system("chcp 866 > nul");
+    
     Node *root = load_to_memory();
     if (!root) {
-        printf("Error: File 'database.dat' not found\n");
+        system("chcp 65001 > nul");
+        print_error("❌ File 'database.dat' not found!");
         return 1;
     }
     
@@ -298,19 +445,75 @@ int main() {
     make_index_array(unsorted_ind_arr, root, N);
     make_index_array(sorted_ind_arr, root, N);
     
-    printf("Sorting data by street and house number...\n");
+    system("chcp 65001 > nul");
+    print_info("🔃 Sorting data by street and house number...");
+    
     HeapSort(sorted_ind_arr, N);
     
-    printf("Data loaded successfully. Total records: %d\n", N);
+    print_success("✅ System initialized successfully!");
+    printf("   📈 Records loaded: %d\n", N);
+    
+    Sleep(1000);
     mainloop(unsorted_ind_arr, sorted_ind_arr);
     
-    // Освобождаем память
+    // Cleanup
     while (root) {
         Node *temp = root;
         root = root->next;
         free(temp);
     }
     
-    printf("Program finished.\n");
+    system("cls");
+    // UTF-8 для финальных сообщений
+    system("chcp 65001 > nul");
+    print_header_title("🎉 SYSTEM SHUTDOWN 👋");
+    print_success("✅ Program completed successfully!");
+    print_info("🙏 Thank you for using Database Management System");
+    printf("\n");
+    
     return 0;
+}
+
+void mainloop(Record *unsorted_ind_array[], Record *sorted_ind_array[]) {
+    while (1) {
+        // UTF-8 для меню
+        system("chcp 65001 > nul");
+        print_main_menu();
+        
+        char *chose = prompt("👉 Enter your choice");
+        
+        // Возвращаем исходную кодировку перед работой с данными
+        system("chcp 866 > nul");
+        
+        switch (chose[0]) {
+            case '1':
+                system("chcp 65001 > nul");
+                printf("📋 Loading unsorted list...\n");
+                system("chcp 866 > nul");
+                show_list(unsorted_ind_array, N);
+                break;
+            case '2':
+                system("chcp 65001 > nul");
+                printf("🔄 Loading sorted list...\n");
+                system("chcp 866 > nul");
+                show_list(sorted_ind_array, N);
+                break;
+            case '3':
+                system("chcp 65001 > nul");
+                printf("🔍 Starting street search...\n");
+                system("chcp 866 > nul");
+                search_by_street(sorted_ind_array);
+                break;
+            case '4':
+                system("chcp 65001 > nul");
+                printf("📖 Opening record viewer...\n");
+                system("chcp 866 > nul");
+                show_record_by_number(unsorted_ind_array);
+                break;
+            default:
+                system("chcp 65001 > nul");
+                print_error("❌ Invalid choice. Please try again.");
+                Sleep(1500);
+        }
+    }
 }
