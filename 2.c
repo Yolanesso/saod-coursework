@@ -27,10 +27,24 @@ typedef struct {
     char date[DATE_SIZE];
 } Record;
 
-typedef struct Node {
+// Очередь
+typedef struct QueueNode {
     Record record;
-    struct Node *next;
-} Node;
+    struct QueueNode *next;
+} QueueNode;
+
+typedef struct {
+    QueueNode *front;
+    QueueNode *rear;
+    int size;
+} Queue;
+
+// Дерево для поиска по номеру квартиры (Vertex из твоего кода)
+typedef struct Vertex {
+    Record *data;
+    struct Vertex *left;
+    struct Vertex *right;
+} Vertex;
 
 // Color functions
 void setColor(int color) {
@@ -107,30 +121,79 @@ char* prompt(const char *str) {
     return ans;
 }
 
-Node* load_to_memory() {
+// Функции для работы с очередью
+Queue* create_queue() {
+    Queue *q = (Queue*)malloc(sizeof(Queue));
+    q->front = q->rear = NULL;
+    q->size = 0;
+    return q;
+}
+
+void enqueue(Queue *q, Record record) {
+    QueueNode *new_node = (QueueNode*)malloc(sizeof(QueueNode));
+    new_node->record = record;
+    new_node->next = NULL;
+    
+    if (q->rear == NULL) {
+        q->front = q->rear = new_node;
+    } else {
+        q->rear->next = new_node;
+        q->rear = new_node;
+    }
+    q->size++;
+}
+
+int dequeue(Queue *q, Record *record) {
+    if (q->front == NULL) {
+        return 0; // Очередь пуста
+    }
+    
+    QueueNode *temp = q->front;
+    *record = temp->record;
+    q->front = q->front->next;
+    
+    if (q->front == NULL) {
+        q->rear = NULL;
+    }
+    
+    free(temp);
+    q->size--;
+    return 1;
+}
+
+int is_queue_empty(Queue *q) {
+    return q->front == NULL;
+}
+
+void free_queue(Queue *q) {
+    while (!is_queue_empty(q)) {
+        Record temp;
+        dequeue(q, &temp);
+    }
+    free(q);
+}
+
+Queue* load_to_memory() {
     FILE *file = fopen("database.dat", "rb");
     if (!file) {
         return NULL;
     }
 
-    Node *root = NULL;
+    Queue *q = create_queue();
     for (int i = 0; i < N; ++i) {
         Record record;
         fread(&record, sizeof(Record), 1, file);
-        Node *new_node = (Node*)malloc(sizeof(Node));
-        new_node->record = record;
-        new_node->next = root;
-        root = new_node;
+        enqueue(q, record);
     }
     fclose(file);
-    return root;
+    return q;
 }
 
-void make_index_array(Record *arr[], Node *root, int n) {
-    Node *p = root;
-    for (int i = 0; i < n; i++) {
-        arr[i] = &(p->record);
-        p = p->next;
+void make_index_array_from_queue(Record *arr[], Queue *q, int n) {
+    QueueNode *current = q->front;
+    for (int i = 0; i < n && current != NULL; i++) {
+        arr[i] = &(current->record);
+        current = current->next;
     }
 }
 
@@ -195,7 +258,6 @@ void print_table_header() {
 }
 
 void print_record(Record *record, int i) {
-    // Alternate row colors for better readability
     if (i % 2 == 0) {
         setColor(COLOR_WHITE);
     } else {
@@ -403,6 +465,141 @@ void show_record_by_number(Record *arr[]) {
     getchar();
 }
 
+// АЛГОРИТМ A2 - ОПТИМАЛЬНОЕ ДЕРЕВО ПОИСКА
+void SDPREC(Record *D, Vertex **p) {
+    if (!*p) {
+        *p = (Vertex*)malloc(sizeof(Vertex));
+        (*p)->data = D;
+        (*p)->left = NULL;
+        (*p)->right = NULL;
+    } else if (D->appartament < (*p)->data->appartament) {
+        SDPREC(D, &(*p)->left);
+    } else if (D->appartament >= (*p)->data->appartament) {
+        SDPREC(D, &(*p)->right);
+    }
+}
+
+void A2(int L, int R, int w[], Record *V[], Vertex **root) {
+    int wes = 0, sum = 0;
+    int i;
+    if (L <= R) {
+        // Считаем общий вес
+        for (i = L; i <= R; i++)
+            wes += w[i];
+        
+        // Ищем центр тяжести
+        for (i = L; i <= R - 1; i++) {
+            if ((sum < (wes / 2)) && ((sum + w[i]) > (wes / 2))) 
+                break;
+            sum += w[i];
+        }
+        
+        // Добавляем вершину в дерево (исправленная индексация)
+        SDPREC(V[i-1], root);
+        
+        // Рекурсивно строим левое и правое поддеревья
+        A2(L, i - 1, w, V, root);
+        A2(i + 1, R, w, V, root);
+    }
+}
+
+void Print_tree(Vertex *p, int *i) {
+    if (p) {
+        Print_tree(p->left, i);
+        print_record(p->data, (*i)++);
+        Print_tree(p->right, i);
+    }
+}
+
+void search_in_optimal_tree(Vertex *root, int key) {
+    int i = 1;
+    while (root) {
+        if (key < root->data->appartament) {
+            root = root->left;
+        } else if (key > root->data->appartament) {
+            root = root->right;
+        } else if (key == root->data->appartament) {
+            print_record(root->data, i++);
+            root = root->right; // Для поиска возможных дубликатов
+        }
+    }
+}
+
+void rmtree(Vertex *root) {
+    if (root) {
+        rmtree(root->right);
+        rmtree(root->left);
+        free(root);
+    }
+}
+
+// Функция для работы с оптимальным деревом
+void optimal_tree_menu(Record *arr[], int n) {
+    Vertex *root = NULL;
+    
+    // Создаем массив весов (в данном случае используем случайные веса)
+    int *w = (int*)malloc((n + 1) * sizeof(int));
+    for (int i = 0; i <= n; ++i) {
+        w[i] = rand() % 100 + 1; // Веса от 1 до 100
+    }
+    
+    // Строим оптимальное дерево
+    A2(1, n, w, arr, &root);
+    
+    char *input;
+    do {
+        system("cls");
+        print_header_title("OPTIMAL SEARCH TREE (ALGORITHM A2)");
+        
+        printf("\n");
+        print_table_header();
+        int count = 1;
+        Print_tree(root, &count);
+        print_table_footer();
+        
+        setColor(COLOR_GREEN);
+        printf("\n Tree Statistics:\n");
+        printf(" - Total nodes: %d\n", n);
+        printf(" - Built using Algorithm A2 (optimal search tree)\n");
+        resetColor();
+        
+        print_info("Enter apartment number to search (or 'q' to quit)");
+        input = prompt("Input search key (apartment number):");
+        
+        if (input[0] == 'q' || input[0] == 'Q') {
+            break;
+        }
+        
+        int key = atoi(input);
+        if (key == 0) {
+            print_error("Invalid apartment number!");
+            Sleep(2000);
+            continue;
+        }
+        
+        system("cls");
+        print_header_title("SEARCH RESULTS IN OPTIMAL TREE");
+        
+        printf("Searching for apartment number: ");
+        setColor(COLOR_YELLOW);
+        printf("%d\n", key);
+        resetColor();
+        
+        printf("\n");
+        print_table_header();
+        search_in_optimal_tree(root, key);
+        print_table_footer();
+        
+        print_info("Press any key to continue...");
+        getchar();
+        getchar();
+        
+    } while (1);
+    
+    rmtree(root);
+    free(w);
+}
+
 void print_main_menu() {
     system("cls");
     print_header_title("📊 DATABASE MANAGEMENT SYSTEM 🗃️");
@@ -414,6 +611,8 @@ void print_main_menu() {
     printf("|  🔄 2 - Show Sorted List (by street and house)                            |\n");
     printf("|  🔍 3 - Search by Street (first 3 letters)                                |\n");
     printf("|  📖 4 - Show Record by Number                                             |\n");
+    printf("|  🌳 5 - Show Optimal Search Tree (Algorithm A2)                           |\n");
+    printf("|  🔎 6 - Search in Optimal Tree                                            |\n");
     printf("|  🚪 0 - Exit Program                                                      |\n");
     print_double_line();
     resetColor();
@@ -421,74 +620,19 @@ void print_main_menu() {
     print_info("🎮 Please select an option from the menu above");
 }
 
-int main() {
-    // Временное включение UTF-8 только для меню
-    system("chcp 65001 > nul");
-    
-    system("cls");
-    
-    print_header_title("📊 DATABASE MANAGEMENT SYSTEM 🗃️");
-    print_info("📂 Loading data from file...");
-    
-    system("chcp 866 > nul");
-    
-    Node *root = load_to_memory();
-    if (!root) {
-        system("chcp 65001 > nul");
-        print_error("❌ File 'database.dat' not found!");
-        return 1;
-    }
-    
-    Record *unsorted_ind_arr[N];
-    Record *sorted_ind_arr[N];
-    
-    make_index_array(unsorted_ind_arr, root, N);
-    make_index_array(sorted_ind_arr, root, N);
-    
-    system("chcp 65001 > nul");
-    print_info("🔃 Sorting data by street and house number...");
-    
-    HeapSort(sorted_ind_arr, N);
-    
-    print_success("✅ System initialized successfully!");
-    printf("   📈 Records loaded: %d\n", N);
-    
-    Sleep(1000);
-    mainloop(unsorted_ind_arr, sorted_ind_arr);
-    
-    // Cleanup
-    while (root) {
-        Node *temp = root;
-        root = root->next;
-        free(temp);
-    }
-    
-    system("cls");
-    // UTF-8 для финальных сообщений
-    system("chcp 65001 > nul");
-    print_header_title("🎉 SYSTEM SHUTDOWN 👋");
-    print_success("✅ Program completed successfully!");
-    print_info("🙏 Thank you for using Database Management System");
-    printf("\n");
-    
-    return 0;
-}
-
-void mainloop(Record *unsorted_ind_array[], Record *sorted_ind_array[]) {
+void mainloop_with_queue(Record *unsorted_ind_array[], Record *sorted_ind_array[], Queue *q) {
     while (1) {
-        // UTF-8 для меню
         system("chcp 65001 > nul");
         print_main_menu();
         
         char *chose = prompt("👉 Enter your choice");
         
-        // Возвращаем исходную кодировку перед работой с данными
         system("chcp 866 > nul");
         
         switch (chose[0]) {
             case '1':
                 system("chcp 65001 > nul");
-                printf("📋 Loading unsorted list...\n");
+                printf("📋 Loading unsorted list from QUEUE...\n");
                 system("chcp 866 > nul");
                 show_list(unsorted_ind_array, N);
                 break;
@@ -506,14 +650,70 @@ void mainloop(Record *unsorted_ind_array[], Record *sorted_ind_array[]) {
                 break;
             case '4':
                 system("chcp 65001 > nul");
-                printf("📖 Opening record viewer...\n");
+                printf("📖 Opening record viewer from QUEUE...\n");
                 system("chcp 866 > nul");
                 show_record_by_number(unsorted_ind_array);
                 break;
+            case '5':
+            case '6':
+                system("chcp 65001 > nul");
+                printf("🌳 Building optimal search tree with Algorithm A2...\n");
+                system("chcp 866 > nul");
+                optimal_tree_menu(unsorted_ind_array, N);
+                break;
+            case '0':
+                system("chcp 65001 > nul");
+                return;
             default:
                 system("chcp 65001 > nul");
                 print_error("❌ Invalid choice. Please try again.");
                 Sleep(1500);
         }
     }
+}
+
+int main() {
+    system("chcp 65001 > nul");
+    
+    system("cls");
+    
+    print_header_title("📊 DATABASE MANAGEMENT SYSTEM 🗃️");
+    print_info("📂 Loading data from file to QUEUE...");
+    
+    system("chcp 866 > nul");
+    
+    Queue *queue = load_to_memory();
+    if (!queue) {
+        system("chcp 65001 > nul");
+        print_error("❌ File 'database.dat' not found!");
+        return 1;
+    }
+    
+    Record *unsorted_ind_arr[N];
+    Record *sorted_ind_arr[N];
+    
+    make_index_array_from_queue(unsorted_ind_arr, queue, N);
+    make_index_array_from_queue(sorted_ind_arr, queue, N);
+    
+    system("chcp 65001 > nul");
+    print_info("🔃 Sorting data by street and house number...");
+    
+    HeapSort(sorted_ind_arr, N);
+    
+    print_success("✅ System initialized successfully!");
+    printf("   📈 Records loaded in queue: %d\n", queue->size);
+    
+    Sleep(1000);
+    mainloop_with_queue(unsorted_ind_arr, sorted_ind_arr, queue);
+    
+    free_queue(queue);
+    
+    system("cls");
+    system("chcp 65001 > nul");
+    print_header_title("🎉 SYSTEM SHUTDOWN 👋");
+    print_success("✅ Program completed successfully!");
+    print_info("🙏 Thank you for using Database Management System");
+    printf("\n");
+    
+    return 0;
 }
