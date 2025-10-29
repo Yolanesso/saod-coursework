@@ -24,7 +24,7 @@ typedef struct Node {
 
 // Структуры для очереди и дерева (классическая очередь с head и tail)
 typedef struct QueueNode {
-    Record *record;
+    Record **record_ptr;  // УКАЗАТЕЛЬ на ячейку индексного массива!
     struct QueueNode *next;
 } QueueNode;
 
@@ -211,9 +211,9 @@ Queue* create_queue() {
     return q;
 }
 
-void enqueue(Queue *q, Record *record) {
+void enqueue(Queue *q, Record **record_ptr) {  // ИЗМЕНЕНО: принимаем Record**
     QueueNode *new_node = (QueueNode*)malloc(sizeof(QueueNode));
-    new_node->record = record;
+    new_node->record_ptr = record_ptr;  // ИЗМЕНЕНО: сохраняем указатель на ячейку массива
     new_node->next = NULL;
     
     if (q->tail == NULL) {
@@ -233,7 +233,7 @@ Record* dequeue(Queue *q) {
     }
     
     QueueNode *temp = q->head;
-    Record *record = temp->record;
+    Record *record = *(temp->record_ptr);  // ИЗМЕНЕНО: разыменовываем Record** → Record*
     
     q->head = q->head->next;
     if (q->head == NULL) {
@@ -257,11 +257,11 @@ void free_queue(Queue *q) {
 }
 
 // Процедура добавления в очередь
-void add_to_queue(Record *record) {
+void add_to_queue(Record **record_ptr) {  // ИЗМЕНЕНО: принимаем Record**
     if (search_queue == NULL) {
         search_queue = create_queue();
     }
-    enqueue(search_queue, record);
+    enqueue(search_queue, record_ptr);
 }
 
 // Процедура вывода очереди
@@ -274,14 +274,14 @@ void print_queue() {
     printf("\n=== FOUND RECORDS QUEUE ===\n");
     printf("Queue size: %d\n", search_queue->size);
     printf("Head: %s, Tail: %s\n", 
-           search_queue->head->record->street, 
-           search_queue->tail->record->street);
+           (*(search_queue->head->record_ptr))->street,  // ИЗМЕНЕНО: разыменовываем
+           (*(search_queue->tail->record_ptr))->street); // ИЗМЕНЕНО: разыменовываем
     print_head();
     
     QueueNode *current = search_queue->head;
     int i = 1;
     while (current != NULL) {
-        print_record(current->record, i++);
+        print_record(*(current->record_ptr), i++);  // ИЗМЕНЕНО: разыменовываем
         current = current->next;
     }
 }
@@ -331,7 +331,7 @@ void search_database() {
             found_count = 0;
             for (int i = first_index; i < N; i++) {
                 if (compare_search(index_database[i]->street, search_key) == 0) {
-                    add_to_queue(index_database[i]);
+                    add_to_queue(&index_database[i]);  // ИЗМЕНЕНО: передаем адрес ячейки массива
                     found_count++;
                 } else {
                     break; // Прерываем, когда встретили запись с другим ключом
@@ -484,7 +484,7 @@ TreeNode* build_optimal_tree_from_queue_by_date(Queue *q) {
     // Заполняем массивы из очереди со случайными весами
     QueueNode *current = q->head;
     for (int i = 0; i < count && current != NULL; i++) {
-        V[i] = current->record;
+        V[i] = *(current->record_ptr);  // ИЗМЕНЕНО: разыменовываем Record** → Record*
         w[i] = generate_random_weight(); // СЛУЧАЙНЫЙ ВЕС!
         current = current->next;
     }
@@ -709,7 +709,7 @@ void mainloop(Record *unsorted_ind_array[], Record *sorted_ind_array[]) {
                         // Заполняем очередь из найденных записей
                         for (int i = first_index; i < N; i++) {
                             if (compare_search(index_database[i]->street, search_key) == 0) {
-                                enqueue(q, index_database[i]);
+                                enqueue(q, &index_database[i]);  // ИЗМЕНЕНО: передаем адрес ячейки
                             } else {
                                 break;
                             }
