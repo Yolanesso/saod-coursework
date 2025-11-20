@@ -204,9 +204,9 @@ Queue* create_queue() {
     return q;
 }
 
-void enqueue(Queue *q, Record *record) {  // ПРОСТО указатель на запись
+void enqueue(Queue *q, Record *record) { 
     QueueNode *new_node = (QueueNode*)malloc(sizeof(QueueNode));
-    new_node->record = record;  // сохраняем указатель
+    new_node->record = record;
     new_node->next = NULL;
     
     if (q->tail == NULL) {
@@ -224,7 +224,7 @@ Record* dequeue(Queue *q) {
     }
     
     QueueNode *temp = q->head;
-    Record *record = temp->record;  // возвращаем указатель
+    Record *record = temp->record;
     
     q->head = q->head->next;
     if (q->head == NULL) {
@@ -314,7 +314,7 @@ void search_database() {
             found_count = 0;
             for (int i = first_index; i < N; i++) {
                 if (compare_search(index_database[i]->street, search_key) == 0) {
-                    add_to_queue(index_database[i]);  // ПРОСТО указатель
+                    add_to_queue(index_database[i]);
                     found_count++;
                 } else {
                     break;
@@ -432,7 +432,6 @@ void A2_by_date(int L, int R, int w[], Record *V[], TreeNode **root) {
     }
 }
 
-// ОПТИМИЗИРОВАННО: строим дерево из очереди указателей
 TreeNode* build_optimal_tree_from_queue_by_date(Queue *q) {
     if (is_queue_empty(q)) {
         return NULL;
@@ -442,15 +441,13 @@ TreeNode* build_optimal_tree_from_queue_by_date(Queue *q) {
     Record **V = (Record**)malloc(count * sizeof(Record*));
     int *w = (int*)malloc(count * sizeof(int));
     
-    // Извлекаем указатели из очереди
     QueueNode *current = q->head;
     for (int i = 0; i < count && current != NULL; i++) {
-        V[i] = current->record;  // берем указатель из очереди
+        V[i] = current->record;
         w[i] = generate_random_weight();
         current = current->next;
     }
     
-    // Сортируем по дате
     WeightedRecord *temp = (WeightedRecord*)malloc(count * sizeof(WeightedRecord));
     for (int i = 0; i < count; i++) {
         temp[i].record = V[i];
@@ -518,6 +515,7 @@ void search_tree_by_date_range(TreeNode *root, const char *input_start_date, con
     if (root != NULL) {
         char start_date[20], end_date[20];
         
+        // Преобразование формата дат
         if (strchr(input_start_date, '.')) {
             int day, month, year;
             sscanf(input_start_date, "%d.%d.%d", &day, &month, &year);
@@ -535,17 +533,19 @@ void search_tree_by_date_range(TreeNode *root, const char *input_start_date, con
         } else {
             strcpy(end_date, input_end_date);
         }
+                
+        int cmp_start = compare_dates(root->record->date, start_date);
+        int cmp_end = compare_dates(root->record->date, end_date);
         
-        if (compare_dates(root->record->date, start_date) >= 0) {
+        if (cmp_start >= 0) {
             search_tree_by_date_range(root->left, input_start_date, input_end_date, count);
         }
         
-        if (compare_dates(root->record->date, start_date) >= 0 && 
-            compare_dates(root->record->date, end_date) <= 0) {
+        if (cmp_start >= 0 && cmp_end <= 0) {
             print_record(root->record, (*count)++);
         }
         
-        if (compare_dates(root->record->date, end_date) <= 0) {
+        if (cmp_end <= 0) {
             search_tree_by_date_range(root->right, input_start_date, input_end_date, count);
         }
     }
@@ -571,9 +571,20 @@ void search_in_tree_by_date(TreeNode *root) {
             }
             break;
         }
-        case '2': {
-            char *start_date_input = prompt("Enter start date (e.g., 01-01-96 or 01.01.1996)");
-            char *end_date_input = prompt("Enter end date (e.g., 31-12-96 or 31.12.1996)");
+            case '2': {
+            char start_date_input[20], end_date_input[20];
+            
+            printf("Enter start date (e.g., 01-01-96 or 01.01.1996)\n> ");
+            scanf("%19s", start_date_input);
+            
+            printf("Enter end date (e.g., 31-12-96 or 31.12.1996)\n> ");
+            scanf("%19s", end_date_input);
+            
+            // Очистка буфера ввода
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF);
+            
+            printf("DEBUG BEFORE CALL: start='%s', end='%s'\n", start_date_input, end_date_input);
             
             printf("\nRecords in date range %s - %s:\n", start_date_input, end_date_input);
             print_head();
@@ -662,7 +673,7 @@ void mainloop(Record *unsorted_ind_array[], Record *sorted_ind_array[]) {
                         
                         for (int i = first_index; i < N; i++) {
                             if (compare_search(index_database[i]->street, search_key) == 0) {
-                                enqueue(q, index_database[i]);  // ПРОСТО указатель
+                                enqueue(q, index_database[i]);
                             } else {
                                 break;
                             }
