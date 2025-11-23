@@ -95,39 +95,50 @@ int compare_for_heap(const void *a, const void *b) {
     return compare_records(r1, r2);
 }
 
-void heapify(Record *array[], int n, int i) {
-    int largest = i;
-    int left = 2 * i + 1;
-    int right = 2 * i + 2;
-
-    if (left < n && compare_for_heap(&array[left], &array[largest]) > 0) {
-        largest = left;
+void heapify(Record *array[], int L, int R) {
+    Record *x = array[L];
+    int i = L;
+    
+    while (1) {
+        int j = 2 * i + 1;
+        
+        if (j > R) break;
+        
+        // Меняем сравнение на > для max-кучи
+        if (j < R && compare_for_heap(&array[j + 1], &array[j]) > 0) {
+            j = j + 1;
+        }
+        
+        // Меняем сравнение на > для max-кучи
+        if (compare_for_heap(&x, &array[j]) > 0) break;
+        
+        array[i] = array[j];
+        i = j;
     }
-
-    if (right < n && compare_for_heap(&array[right], &array[largest]) > 0) {
-        largest = right;
-    }
-
-    if (largest != i) {
-        Record *temp = array[i];
-        array[i] = array[largest];
-        array[largest] = temp;
-
-        heapify(array, n, largest);
-    }
+    
+    array[i] = x;
 }
 
 void HeapSort(Record *array[], int n) {
-    for (int i = n / 2 - 1; i >= 0; i--) {
-        heapify(array, n, i);
+    int L = n / 2 - 1;
+    
+    while (L >= 0) {
+        heapify(array, L, n - 1);
+        L = L - 1;
     }
     
-    for (int i = n - 1; i > 0; i--) {
+    int R = n - 1;
+    
+    while (R > 0) {
         Record *temp = array[0];
-        array[0] = array[i];
-        array[i] = temp;
+        array[0] = array[R];
+        array[R] = temp;
         
-        heapify(array, i, 0);
+        R = R - 1;
+        
+        if (R > 0) {
+            heapify(array, 0, R);
+        }
     }
 }
 
@@ -515,7 +526,6 @@ void search_tree_by_date_range(TreeNode *root, const char *input_start_date, con
     if (root != NULL) {
         char start_date[20], end_date[20];
         
-        // Преобразование формата дат
         if (strchr(input_start_date, '.')) {
             int day, month, year;
             sscanf(input_start_date, "%d.%d.%d", &day, &month, &year);
