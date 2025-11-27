@@ -104,12 +104,10 @@ void heapify(Record *array[], int L, int R) {
         
         if (j > R) break;
         
-        // Меняем сравнение на > для max-кучи
         if (j < R && compare_for_heap(&array[j + 1], &array[j]) > 0) {
             j = j + 1;
         }
         
-        // Меняем сравнение на > для max-кучи
         if (compare_for_heap(&x, &array[j]) > 0) break;
         
         array[i] = array[j];
