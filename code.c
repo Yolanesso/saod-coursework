@@ -8,131 +8,106 @@
 #define MAX_FILENAME 256
 
 typedef struct {
-    unsigned char symbol;
     double probability;
     char code[MAX_CODE_LENGTH];
     int code_length;
-} SymbolInfo;
+} SymbolData;
 
-typedef struct Node {
-    SymbolInfo data;
-    struct Node* left;
-    struct Node* right;
-} Node;
-
-typedef struct {
-    SymbolInfo symbols[MAX_SYMBOLS];
-    int count;
-} SymbolTable;
-
-// Функция для создания нового узла
-Node* create_node(SymbolInfo data) {
-    Node* node = (Node*)malloc(sizeof(Node));
-    node->data = data;
-    node->left = node->right = NULL;
-    return node;
-}
-
-// Рекурсивная функция построения кодов Хаффмана
-void build_huffman_codes(Node* root, char* code, int depth, SymbolTable* result) {
-    if (root == NULL) return;
+// Функция Up - поиск и вставка суммы вероятностей
+int Up(int n, double q, double P[]) {
+    int j = n;  // по умолчанию вставляем в конец
     
-    // Если это лист, сохраняем код
-    if (root->left == NULL && root->right == NULL) {
-        for (int i = 0; i < MAX_SYMBOLS; i++) {
-            if (result->symbols[i].symbol == root->data.symbol) {
-                strcpy(result->symbols[i].code, code);
-                result->symbols[i].code_length = depth;
-                break;
-            }
-        }
-        return;
-    }
-    
-    // Рекурсивно обходим левое поддерево
-    if (root->left != NULL) {
-        code[depth] = '0';
-        code[depth + 1] = '\0';
-        build_huffman_codes(root->left, code, depth + 1, result);
-    }
-    
-    // Рекурсивно обходим правое поддерево
-    if (root->right != NULL) {
-        code[depth] = '1';
-        code[depth + 1] = '\0';
-        build_huffman_codes(root->right, code, depth + 1, result);
-    }
-}
-
-// Основная функция построения кода Хаффмана
-void huffman_coding(SymbolTable* table) {
-    if (table->count <= 1) return;
-    
-    // Создаем массив узлов
-    Node* nodes[MAX_SYMBOLS];
-    for (int i = 0; i < table->count; i++) {
-        nodes[i] = create_node(table->symbols[i]);
-    }
-    
-    int remaining_nodes = table->count;
-    
-    while (remaining_nodes > 1) {
-        // Берем два узла с наименьшими вероятностями
-        Node* min1 = nodes[remaining_nodes - 1];
-        Node* min2 = nodes[remaining_nodes - 2];
-        
-        // Создаем новый удел с суммой вероятностей
-        SymbolInfo new_symbol;
-        new_symbol.symbol = 0; // Внутренний узел
-        new_symbol.probability = min1->data.probability + min2->data.probability;
-        
-        Node* new_node = create_node(new_symbol);
-        new_node->left = min2;
-        new_node->right = min1;
-        
-        // Вставляем новый узел в массив
-        nodes[remaining_nodes - 2] = new_node;
-        remaining_nodes--;
-        
-        // Сортируем массив по убыванию вероятностей
-        for (int i = remaining_nodes - 1; i > 0; i--) {
-            if (nodes[i]->data.probability > nodes[i - 1]->data.probability) {
-                Node* temp = nodes[i];
-                nodes[i] = nodes[i - 1];
-                nodes[i - 1] = temp;
-            }
+    int i;
+    for (i = n - 1; i >= 2; i--) {
+        if (P[i - 1] <= q) {
+            P[i] = P[i - 1];
+        } else {
+            j = i;
+            break;
         }
     }
     
-    // Строим коды
-    char code[MAX_CODE_LENGTH] = {0};
-    build_huffman_codes(nodes[0], code, 0, table);
+    // Если дошли до начала
+    if (i == 1) {
+        j = 1;
+    }
     
-    free(nodes[0]); // Освобождаем корень дерева
+    P[j] = q;
+    return j;
+}
+
+// Функция Down - достраивание кодов
+void Down(int n, int j, SymbolData C[], int L[]) {
+    // Сохраняем j-ю строку матрицы кодов
+    char S[MAX_CODE_LENGTH];
+    strcpy(S, C[j].code);
+    int L_temp = L[j];
+    
+    // Сдвигаем вверх строки матрицы C и массива L
+    for (int i = j; i <= n - 2; i++) {
+        strcpy(C[i].code, C[i + 1].code);
+        L[i] = L[i + 1];
+    }
+    
+    // Восстанавливаем префикс для двух последних символов
+    strcpy(C[n - 1].code, S);
+    strcpy(C[n].code, S);
+    
+    // Добавляем 0 и 1 к кодам
+    C[n - 1].code[L_temp] = '0';
+    C[n - 1].code[L_temp + 1] = '\0';
+    
+    C[n].code[L_temp] = '1';
+    C[n].code[L_temp + 1] = '\0';
+    
+    // Обновляем длины кодов
+    L[n - 1] = L_temp + 1;
+    L[n] = L_temp + 1;
+}
+
+// Рекурсивная функция Хаффмана
+void Huffman(int n, double P[], SymbolData C[], int L[]) {
+    if (n == 2) {
+        // Базовый случай для двух символов
+        C[1].code[0] = '0';
+        C[1].code[1] = '\0';
+        L[1] = 1;
+        
+        C[2].code[0] = '1';
+        C[2].code[1] = '\0';
+        L[2] = 1;
+    } else {
+        // Рекурсивный случай
+        double q = P[n - 1] + P[n];
+        int j = Up(n, q, P);
+        Huffman(n - 1, P, C, L);
+        Down(n, j, C, L);
+    }
 }
 
 // Функция для вычисления энтропии
-double calculate_entropy(SymbolTable* table) {
+double calculate_entropy(SymbolData symbols[], int count) {
     double entropy = 0.0;
-    for (int i = 0; i < table->count; i++) {
-        if (table->symbols[i].probability > 0) {
-            entropy -= table->symbols[i].probability * log2(table->symbols[i].probability);
+    for (int i = 1; i <= count; i++) {
+        if (symbols[i].probability > 0) {
+            entropy -= symbols[i].probability * log2(symbols[i].probability);
         }
     }
     return entropy;
 }
 
 // Функция для вычисления средней длины кодового слова
-double calculate_average_length(SymbolTable* table) {
+double calculate_average_length(SymbolData symbols[], int count) {
     double avg_length = 0.0;
-    for (int i = 0; i < table->count; i++) {
-        avg_length += table->symbols[i].probability * table->symbols[i].code_length;
+    for (int i = 1; i <= count; i++) {
+        avg_length += symbols[i].probability * symbols[i].code_length;
     }
     return avg_length;
 }
 
 // Функция для анализа файла и вычисления вероятностей символов
-int analyze_file(const char* filename, SymbolTable* table) {
+int analyze_file(const char* filename, SymbolData symbols[], int* symbol_count, 
+                 unsigned char symbol_map[], double P[]) {
     FILE* file = fopen(filename, "rb");
     if (!file) {
         printf("Ошибка: невозможно открыть файл %s\n", filename);
@@ -154,25 +129,37 @@ int analyze_file(const char* filename, SymbolTable* table) {
     
     fclose(file);
     
-    // Заполнение таблицы символов
-    table->count = 0;
+    // Заполнение таблицы символов (индексы 1..n)
+    *symbol_count = 0;
     for (int i = 0; i < MAX_SYMBOLS; i++) {
         if (freq[i] > 0) {
-            table->symbols[table->count].symbol = (unsigned char)i;
-            table->symbols[table->count].probability = (double)freq[i] / total_chars;
-            table->symbols[table->count].code_length = 0;
-            table->symbols[table->count].code[0] = '\0';
-            table->count++;
+            (*symbol_count)++;
+            symbol_map[*symbol_count] = (unsigned char)i;
+            symbols[*symbol_count].probability = (double)freq[i] / total_chars;
+            symbols[*symbol_count].code_length = 0;
+            symbols[*symbol_count].code[0] = '\0';
+            P[*symbol_count] = symbols[*symbol_count].probability;
         }
     }
     
-    // Сортировка по убыванию вероятностей
-    for (int i = 0; i < table->count - 1; i++) {
-        for (int j = i + 1; j < table->count; j++) {
-            if (table->symbols[i].probability < table->symbols[j].probability) {
-                SymbolInfo temp = table->symbols[i];
-                table->symbols[i] = table->symbols[j];
-                table->symbols[j] = temp;
+    // Сортировка по убыванию вероятностей (индексы 1..n)
+    for (int i = 1; i <= *symbol_count - 1; i++) {
+        for (int j = i + 1; j <= *symbol_count; j++) {
+            if (P[i] < P[j]) {
+                // Меняем местами вероятности
+                double temp_p = P[i];
+                P[i] = P[j];
+                P[j] = temp_p;
+                
+                // Меняем местами символы в отображении
+                unsigned char temp_sym = symbol_map[i];
+                symbol_map[i] = symbol_map[j];
+                symbol_map[j] = temp_sym;
+                
+                // Меняем местами данные символов
+                SymbolData temp_sym_data = symbols[i];
+                symbols[i] = symbols[j];
+                symbols[j] = temp_sym_data;
             }
         }
     }
@@ -181,7 +168,8 @@ int analyze_file(const char* filename, SymbolTable* table) {
 }
 
 // Функция для кодирования файла
-int encode_file(const char* input_filename, const char* output_filename, SymbolTable* table) {
+int encode_file(const char* input_filename, const char* output_filename, 
+                SymbolData symbols[], unsigned char symbol_map[], int symbol_count) {
     FILE* input_file = fopen(input_filename, "rb");
     FILE* output_file = fopen(output_filename, "wb");
     
@@ -192,14 +180,14 @@ int encode_file(const char* input_filename, const char* output_filename, SymbolT
         return 0;
     }
     
-    // Создаем таблицу для быстрого поиска кодов
+    // Создаем таблицу для быстрого поиска кодов по символам
     char* code_table[MAX_SYMBOLS] = {0};
     int code_length_table[MAX_SYMBOLS] = {0};
     
-    for (int i = 0; i < table->count; i++) {
-        unsigned char symbol = table->symbols[i].symbol;
-        code_table[symbol] = table->symbols[i].code;
-        code_length_table[symbol] = table->symbols[i].code_length;
+    for (int i = 1; i <= symbol_count; i++) {
+        unsigned char symbol = symbol_map[i];
+        code_table[symbol] = symbols[i].code;
+        code_length_table[symbol] = symbols[i].code_length;
     }
     
     // Кодирование данных
@@ -238,21 +226,43 @@ int encode_file(const char* input_filename, const char* output_filename, SymbolT
 }
 
 // Функция для вывода кодов на экран
-void print_codes(SymbolTable* table) {
+void print_codes(SymbolData symbols[], unsigned char symbol_map[], int count) {
     printf("Коды Хаффмана:\n");
     printf("Символ\tВероятность\tКод\tДлина\n");
     printf("----------------------------------------\n");
     
-    for (int i = 0; i < table->count; i++) {
-        if (table->symbols[i].symbol >= 32 && table->symbols[i].symbol <= 126) {
-            printf("'%c'\t", table->symbols[i].symbol);
+    for (int i = 1; i <= count; i++) {
+        unsigned char symbol = symbol_map[i];
+        if (symbol >= 32 && symbol <= 126) {
+            printf("'%c'\t", symbol);
         } else {
-            printf("0x%02X\t", table->symbols[i].symbol);
+            printf("0x%02X\t", symbol);
         }
         printf("%.6f\t%s\t%d\n", 
-               table->symbols[i].probability,
-               table->symbols[i].code,
-               table->symbols[i].code_length);
+               symbols[i].probability,
+               symbols[i].code,
+               symbols[i].code_length);
+    }
+}
+
+// Функция для проверки уникальности кодов
+void verify_codes(SymbolData symbols[], int count) {
+    printf("\nПроверка уникальности кодов:\n");
+    int errors = 0;
+    
+    for (int i = 1; i <= count; i++) {
+        for (int j = i + 1; j <= count; j++) {
+            if (strcmp(symbols[i].code, symbols[j].code) == 0) {
+                printf("ОШИБКА: Дублирующиеся коды! %s\n", symbols[i].code);
+                errors++;
+            }
+        }
+    }
+    
+    if (errors == 0) {
+        printf("Все коды уникальны ✓\n");
+    } else {
+        printf("Найдено ошибок: %d\n", errors);
     }
 }
 
@@ -266,36 +276,76 @@ int main(int argc, char* argv[]) {
     char output_filename[MAX_FILENAME];
     snprintf(output_filename, sizeof(output_filename), "%s.huff", input_filename);
     
-    SymbolTable table;
+    // Используем индексы 1..MAX_SYMBOLS для соответствия псевдокоду
+    SymbolData symbols[MAX_SYMBOLS + 1];  // Индексы 1..n
+    unsigned char symbol_map[MAX_SYMBOLS + 1]; // Индексы 1..n
+    double P[MAX_SYMBOLS + 1];  // Индексы 1..n
+    int L[MAX_SYMBOLS + 1];     // Индексы 1..n
+    
+    int symbol_count;
     
     printf("Анализ файла: %s\n", input_filename);
     
+    // Инициализация массивов
+    for (int i = 0; i <= MAX_SYMBOLS; i++) {
+        symbols[i].code[0] = '\0';
+        symbols[i].code_length = 0;
+        symbols[i].probability = 0.0;
+        L[i] = 0;
+        P[i] = 0.0;
+    }
+    
     // Анализ файла и вычисление вероятностей
-    if (!analyze_file(input_filename, &table)) {
+    if (!analyze_file(input_filename, symbols, &symbol_count, symbol_map, P)) {
         return 1;
     }
     
-    printf("Найдено %d уникальных символов\n", table.count);
+    printf("Найдено %d уникальных символов\n", symbol_count);
     
-    // Построение кодов Хаффмана
-    huffman_coding(&table);
+    if (symbol_count < 2) {
+        printf("Ошибка: нужно как минимум 2 символа\n");
+        return 1;
+    }
+    
+    // Создаем копию P для работы алгоритма
+    double P_work[MAX_SYMBOLS + 1];
+    for (int i = 1; i <= symbol_count; i++) {
+        P_work[i] = P[i];
+    }
+    
+    // Построение кодов Хаффмана (точно по псевдокоду)
+    Huffman(symbol_count, P_work, symbols, L);
+    
+    // Обновление длин кодов в структуре symbols
+    for (int i = 1; i <= symbol_count; i++) {
+        symbols[i].code_length = L[i];
+    }
+    
+    // Проверка корректности кодов
+    verify_codes(symbols, symbol_count);
     
     // Вывод результатов
-    print_codes(&table);
+    print_codes(symbols, symbol_map, symbol_count);
     
     // Вычисление энтропии и средней длины
-    double entropy = calculate_entropy(&table);
-    double avg_length = calculate_average_length(&table);
+    double entropy = calculate_entropy(symbols, symbol_count);
+    double avg_length = calculate_average_length(symbols, symbol_count);
     
     printf("\nРезультаты:\n");
     printf("Энтропия: %.6f бит/символ\n", entropy);
     printf("Средняя длина кодового слова: %.6f бит/символ\n", avg_length);
     printf("Избыточность: %.6f бит/символ\n", avg_length - entropy);
-    printf("Эффективность кодирования: %.2f%%\n", (entropy / avg_length) * 100);
+    
+    if (avg_length >= entropy) {
+        printf("Эффективность кодирования: %.2f%%\n", (entropy / avg_length) * 100);
+    } else {
+        printf("ОШИБКА: Средняя длина меньше энтропии!\n");
+        return 1;
+    }
     
     // Кодирование файла
     printf("\nКодирование файла...\n");
-    if (encode_file(input_filename, output_filename, &table)) {
+    if (encode_file(input_filename, output_filename, symbols, symbol_map, symbol_count)) {
         // Вычисление коэффициента сжатия
         FILE* input_file = fopen(input_filename, "rb");
         FILE* output_file = fopen(output_filename, "rb");
